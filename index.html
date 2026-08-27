@@ -289,14 +289,15 @@
       <thead>
         <tr>
           <th onclick="sortTable(0)">Nº OS ↕</th>
-          <th onclick="sortTable(1)">Abertura ↕</th>
-          <th onclick="sortTable(2)">Situação ↕</th>
-          <th onclick="sortTable(3)">Dias ↕</th>
-          <th onclick="sortTable(4)">Faixa ↕</th>
+          <th onclick="sortTable(1)">Cliente ↕</th>
+          <th onclick="sortTable(2)">Abertura ↕</th>
+          <th onclick="sortTable(3)">Situação ↕</th>
+          <th onclick="sortTable(4)">Dias ↕</th>
+          <th onclick="sortTable(5)">Faixa ↕</th>
           <th>Nota Fiscal</th>
-          <th onclick="sortTable(6)" style="text-align:right">Total Geral ↕</th>
-          <th onclick="sortTable(7)" style="text-align:right">Produto ↕</th>
-          <th onclick="sortTable(8)" style="text-align:right">Serviço ↕</th>
+          <th onclick="sortTable(7)" style="text-align:right">Total Geral ↕</th>
+          <th onclick="sortTable(8)" style="text-align:right">Produto ↕</th>
+          <th onclick="sortTable(9)" style="text-align:right">Serviço ↕</th>
         </tr>
       </thead>
       <tbody id="osBody"></tbody>
@@ -574,12 +575,13 @@ function renderFilters() {
 function setFilter(f) { currentFilter = f; renderFilters(); renderTable(filtered()); }
 
 // ── Table ──────────────────────────────────────────────────────────────────
-const SORT_KEYS = ['os','abertura','situacao','dias','faixa','nf','total','produto','servico'];
+const SORT_KEYS = ['os','placa','abertura','situacao','dias','faixa','nf','total','produto','servico'];
 
 function renderTable(rows) {
   document.getElementById('osBody').innerHTML = rows.map(r => `
     <tr>
       <td><strong>${r.os}</strong></td>
+      <td>${r.placa || '—'}</td>
       <td>${r.abertura}</td>
       <td>${badge(r.situacao)}</td>
       <td>${diasBar(r.dias, r.situacao)}</td>
