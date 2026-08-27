@@ -144,10 +144,9 @@
   /* ── Financial cards ── */
   .fin-row {
     display: grid;
-    grid-template-columns: repeat(3,1fr);
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 16px; margin-bottom: 28px;
   }
-  @media (max-width: 700px) { .fin-row { grid-template-columns: 1fr; } }
   .fin-card {
     background: linear-gradient(135deg, var(--card), var(--surface));
     border: 1px solid var(--border);
@@ -504,31 +503,35 @@ function renderCharts() {
 function renderFin() {
   const abertas = allRows.filter(r => r.situacao !== 'FATURADA');
   const faturadas = allRows.filter(r => r.situacao === 'FATURADA');
-  const tProd = abertas.reduce((s,r) => s+r.produto, 0);
-  const tServ = abertas.reduce((s,r) => s+r.servico, 0);
-  const tFat  = faturadas.reduce((s,r) => s+r.total, 0);
-  const tAll  = allRows.reduce((s,r) => s+r.total, 0);
-  const nf    = faturadas.length;
+  const tProd    = abertas.reduce((s,r) => s+r.produto, 0);
+  const tServ    = abertas.reduce((s,r) => s+r.servico, 0);
+  const tFat     = faturadas.reduce((s,r) => s+r.total, 0);
+  const tAberto  = abertas.reduce((s,r) => s+r.total, 0);
+  const nf       = faturadas.length;
 
   document.getElementById('finRow').innerHTML = `
     <div class="fin-card">
-      <div class="fin-label">💼 Total Produto (Abertas)</div>
+      <div class="fin-label">💼 Total Produto (Aberto)</div>
       <div class="fin-value">${fmt(tProd)}</div>
-      <div class="fin-sub"><span><span class="dot" style="background:#22c55e"></span> Serviços: ${fmt(tServ)}</span></div>
+      <div class="fin-sub"><span><span class="dot" style="background:#4f8ef7"></span> ${abertas.length} OS em aberto</span></div>
+    </div>
+    <div class="fin-card">
+      <div class="fin-label">🔧 Total Serviço (Aberto)</div>
+      <div class="fin-value">${fmt(tServ)}</div>
+      <div class="fin-sub"><span><span class="dot" style="background:#4f8ef7"></span> ${abertas.length} OS em aberto</span></div>
     </div>
     <div class="fin-card">
       <div class="fin-label">✅ Total Faturado</div>
       <div class="fin-value">${fmt(tFat)}</div>
       <div class="fin-sub">
-        <span><span class="dot" style="background:#4f8ef7"></span> ${nf} NF${nf!==1?'s':''} emitida${nf!==1?'s':''}</span>
+        <span><span class="dot" style="background:#22c55e"></span> ${nf} NF${nf!==1?'s':''} emitida${nf!==1?'s':''}</span>
       </div>
     </div>
     <div class="fin-card">
-      <div class="fin-label">📊 Total Geral (Todas as OS)</div>
-      <div class="fin-value">${fmt(tAll)}</div>
+      <div class="fin-label">📊 Total em Aberto</div>
+      <div class="fin-value">${fmt(tAberto)}</div>
       <div class="fin-sub">
-        <span><span class="dot" style="background:#a78bfa"></span> Abertas: ${pct(abertas.reduce((s,r)=>s+r.total,0), tAll)}</span>
-        <span><span class="dot" style="background:#22c55e"></span> Faturas: ${pct(tFat, tAll)}</span>
+        <span><span class="dot" style="background:#a78bfa"></span> ${pct(tAberto, tAberto+tFat)} do total geral</span>
       </div>
     </div>
   `;
