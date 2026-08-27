@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard OS — AMBIPAR ENVIRONMENTAL NORDESTE</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --card: #20243a;
+    --border: #2e3350;
+    --accent: #4f8ef7;
+    --accent2: #22c55e;
+    --accent3: #f59e0b;
+    --accent4: #ef4444;
+    --accent5: #a78bfa;
+    --text: #e8eaf6;
+    --muted: #8892b0;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  /* ── Loading overlay ── */
+  #loading {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 999;
+    gap: 18px;
+  }
+  .spinner {
+    width: 44px; height: 44px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loading p { color: var(--muted); font-size: 0.85rem; }
+  #loading.hidden { display: none; }
+
+  /* ── Error banner ── */
+  #errorBanner {
+    background: rgba(239,68,68,.12);
+    border: 1px solid rgba(239,68,68,.3);
+    color: #ef4444;
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    font-size: 0.83rem;
+    display: none;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    margin-bottom: 32px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap; gap: 12px;
+  }
+  .logo-area h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px; }
+  .logo-area p { font-size: 0.8rem; color: var(--muted); margin-top: 3px; }
+  .meta-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .badge-pill {
+    font-size: 0.73rem;
+    color: var(--muted);
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 6px 14px;
+    border-radius: 20px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .live-dot {
+    width: 7px; height: 7px;
+    background: var(--accent2);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+  #btnRefresh {
+    font-size: 0.73rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 6px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all .2s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  #btnRefresh:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── KPI Cards ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 16px; margin-bottom: 28px;
+  }
+  .kpi-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    position: relative; overflow: hidden;
+  }
+  .kpi-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: var(--accent-color, var(--accent));
+  }
+  .kpi-label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px; }
+  .kpi-value { font-size: 2.2rem; font-weight: 800; color: var(--kpi-color, var(--text)); line-height: 1; }
+  .kpi-value.sm { font-size: 1.4rem; }
+  .kpi-sub { font-size: .72rem; color: var(--muted); margin-top: 6px; }
+
+  /* ── Charts row ── */
+  .charts-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.4fr;
+    gap: 16px; margin-bottom: 28px;
+  }
+  @media (max-width: 900px) { .charts-row { grid-template-columns: 1fr; } }
+  .chart-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px;
+  }
+  .chart-card h3 { font-size: .85rem; font-weight: 600; margin-bottom: 4px; }
+  .chart-card p.subtitle { font-size: .72rem; color: var(--muted); margin-bottom: 18px; }
+  .chart-wrap { position: relative; height: 200px; }
+
+  /* ── Financial cards ── */
+  .fin-row {
+    display: grid;
+    grid-template-columns: repeat(3,1fr);
+    gap: 16px; margin-bottom: 28px;
+  }
+  @media (max-width: 700px) { .fin-row { grid-template-columns: 1fr; } }
+  .fin-card {
+    background: linear-gradient(135deg, var(--card), var(--surface));
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px 22px;
+  }
+  .fin-label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
+  .fin-value { font-size: 1.65rem; font-weight: 800; }
+  .fin-sub { margin-top: 8px; font-size: .72rem; color: var(--muted); display: flex; gap: 12px; flex-wrap: wrap; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+
+  /* ── Faixa progress ── */
+  .faixa-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px; margin-bottom: 28px;
+  }
+  .faixa-card h3 { font-size: .9rem; font-weight: 600; margin-bottom: 16px; }
+  .faixa-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .faixa-label { width: 100px; font-size: .75rem; color: var(--muted); flex-shrink: 0; }
+  .faixa-bar-bg { flex: 1; height: 8px; border-radius: 4px; background: var(--surface); overflow: hidden; }
+  .faixa-bar-fill { height: 100%; border-radius: 4px; transition: width .8s ease; }
+  .faixa-count { width: 28px; text-align: right; font-size: .8rem; font-weight: 700; flex-shrink: 0; }
+  .faixa-pct { width: 40px; text-align: right; font-size: .72rem; color: var(--muted); flex-shrink: 0; }
+
+  /* ── Table ── */
+  .table-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px; margin-bottom: 28px;
+    overflow: hidden;
+  }
+  .table-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+  .table-header h3 { font-size: .9rem; font-weight: 600; }
+  .filter-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .filter-btn {
+    font-size: .72rem; padding: 5px 13px;
+    border-radius: 20px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--muted);
+    cursor: pointer; transition: all .2s;
+  }
+  .filter-btn:hover, .filter-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+  thead tr { border-bottom: 1px solid var(--border); }
+  th {
+    text-align: left; padding: 10px 12px;
+    font-size: .7rem; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .06em;
+    white-space: nowrap; cursor: pointer; user-select: none;
+  }
+  th:hover { color: var(--text); }
+  td { padding: 10px 12px; border-bottom: 1px solid rgba(46,51,80,.5); white-space: nowrap; }
+  tbody tr:hover { background: rgba(79,142,247,.04); }
+  tbody tr:last-child td { border-bottom: none; }
+  .currency { text-align: right; font-variant-numeric: tabular-nums; }
+  .badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: .67rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  .badge-faturada { background: rgba(34,197,94,.15); color: #22c55e; }
+  .badge-aguardando { background: rgba(79,142,247,.15); color: #4f8ef7; }
+  .badge-execucao { background: rgba(245,158,11,.15); color: #f59e0b; }
+  .faixa-chip { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: .67rem; font-weight: 600; }
+  .f0 { background: rgba(34,197,94,.12); color: #22c55e; }
+  .f8 { background: rgba(245,158,11,.12); color: #f59e0b; }
+  .f16 { background: rgba(239,68,68,.12); color: #ef4444; }
+  .f30 { background: rgba(167,139,250,.12); color: #a78bfa; }
+  .dias-bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .dias-bar { height: 5px; border-radius: 3px; min-width: 2px; max-width: 80px; }
+  .dias-num { font-weight: 700; }
+
+  footer { text-align: center; font-size: .72rem; color: var(--muted); padding-top: 20px; border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+
+<!-- Loading -->
+<div id="loading">
+  <div class="spinner"></div>
+  <p>Carregando dados do Google Sheets…</p>
+</div>
+
+<div id="app" style="display:none">
+
+<header>
+  <div class="logo-area">
+    <h1>📋 Controle de OS — AMBIPAR ENVIRONMENTAL</h1>
+    <p>AMBIPAR ENVIRONMENTAL NORDESTE LTDA · Gestor: Nilberto</p>
+  </div>
+  <div class="meta-row">
+    <div class="badge-pill">
+      <span class="live-dot"></span>
+      Atualizado: <span id="lastUpdate">—</span>
+    </div>
+    <button id="btnRefresh" onclick="loadData()">↻ Atualizar</button>
+  </div>
+</header>
+
+<div id="errorBanner"></div>
+
+<!-- KPIs -->
+<div class="kpi-grid" id="kpiGrid"></div>
+
+<!-- Charts -->
+<div class="charts-row">
+  <div class="chart-card">
+    <h3>Situação das OS</h3>
+    <p class="subtitle" id="subtitleSituacao">—</p>
+    <div class="chart-wrap"><canvas id="chartSituacao"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <h3>Faixa de Prazo (OS Abertas)</h3>
+    <p class="subtitle" id="subtitleFaixa">—</p>
+    <div class="chart-wrap"><canvas id="chartFaixa"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <h3>Dias em Aberto por OS</h3>
+    <p class="subtitle">OS abertas ordenadas por prazo</p>
+    <div class="chart-wrap"><canvas id="chartDias"></canvas></div>
+  </div>
+</div>
+
+<!-- Financial -->
+<div class="fin-row" id="finRow"></div>
+
+<!-- Faixa progress -->
+<div class="faixa-card">
+  <h3>📅 Distribuição por Faixa de Prazo</h3>
+  <div id="faixaProgress"></div>
+</div>
+
+<!-- Table -->
+<div class="table-card">
+  <div class="table-header">
+    <h3>📄 Ordens de Serviço</h3>
+    <div class="filter-row" id="filterRow"></div>
+  </div>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th onclick="sortTable(0)">Nº OS ↕</th>
+          <th onclick="sortTable(1)">Abertura ↕</th>
+          <th onclick="sortTable(2)">Situação ↕</th>
+          <th onclick="sortTable(3)">Dias ↕</th>
+          <th onclick="sortTable(4)">Faixa ↕</th>
+          <th>Nota Fiscal</th>
+          <th onclick="sortTable(6)" style="text-align:right">Total Geral ↕</th>
+          <th onclick="sortTable(7)" style="text-align:right">Produto ↕</th>
+          <th onclick="sortTable(8)" style="text-align:right">Serviço ↕</th>
+        </tr>
+      </thead>
+      <tbody id="osBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<footer id="footerTxt">Dashboard ao vivo · Fonte: Google Sheets (Controle de OS – Nilberto)</footer>
+
+</div><!-- #app -->
+
+<script>
+// ── Config ──────────────────────────────────────────────────────────────
+// Planilha publicada na web
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQzgzOgwCVwRlgjbAPoqIPXTonlfVp2cPWGAjq0eMA8t4R19AmUkNnSNPsoxTxjWy7aW_7rGMpF7GMO/pub?output=csv';
+const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos
+
+// ── State ────────────────────────────────────────────────────────────────
+let allRows = [];
+let currentFilter = 'TODAS';
+let sortCol = 0, sortAsc = true;
+let chartSit, chartFx, chartDi;
+
+// ── CSV Parser ────────────────────────────────────────────────────────────
+function parseCSV(text) {
+  const rows = [];
+  let row = [], field = '', inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"' && text[i+1] === '"') { field += '"'; i++; }
+      else if (c === '"') { inQ = false; }
+      else { field += c; }
+    } else {
+      if (c === '"') { inQ = true; }
+      else if (c === ',') { row.push(field.trim()); field = ''; }
+      else if (c === '\n') { row.push(field.trim()); rows.push(row); row = []; field = ''; }
+      else if (c === '\r') {}
+      else { field += c; }
+    }
+  }
+  if (field || row.length) { row.push(field.trim()); rows.push(row); }
+  return rows;
+}
+
+function parseNum(s) {
+  if (!s || s.trim() === '') return 0;
+  return parseFloat(s.replace(/\./g,'').replace(',','.')) || 0;
+}
+
+// ── Fetch & parse ─────────────────────────────────────────────────────────
+async function loadData() {
+  document.getElementById('btnRefresh').textContent = '↻ Atualizando…';
+  try {
+    const resp = await fetch(CSV_URL, { cache: 'no-store' });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const text = await resp.text();
+    const rows = parseCSV(text);
+    if (rows.length < 2) throw new Error('Planilha vazia ou sem dados.');
+
+    // skip header (row 0)
+    allRows = rows.slice(1).filter(r => r[0] && r[0].trim() !== '').map(r => ({
+      os:        r[0]  || '',
+      cliente:   r[1]  || '',
+      abertura:  r[2]  || '',
+      aprovacao: r[3]  || '',
+      faturamento: r[4] || '',
+      nf:        r[5]  || '',
+      prevReceb: r[6]  || '',
+      recebReal: r[7]  || '',
+      situacao:  r[8]  || '',
+      dias:      parseNum(r[9]),
+      faixa:     r[10] || '',
+      produto:   parseNum(r[11]),
+      servico:   parseNum(r[12]),
+      total:     parseNum(r[13]),
+      impostos:  parseNum(r[14]),
+      custos:    parseNum(r[15]),
+    }));
+
+    hideError();
+    render();
+    document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('pt-BR');
+  } catch(e) {
+    showError(e);
+  }
+  document.getElementById('btnRefresh').textContent = '↻ Atualizar';
+  document.getElementById('loading').classList.add('hidden');
+  document.getElementById('app').style.display = '';
+}
+
+function showError(e) {
+  const b = document.getElementById('errorBanner');
+  b.style.display = 'block';
+  b.innerHTML = `⚠️ Não foi possível carregar dados: <strong>${e.message}</strong><br>
+    <small>Verifique se a planilha está pública (Compartilhar → Qualquer pessoa com o link → Visualizador).</small>`;
+}
+function hideError() {
+  document.getElementById('errorBanner').style.display = 'none';
+}
+
+// ── Render ────────────────────────────────────────────────────────────────
+function render() {
+  renderKPIs();
+  renderCharts();
+  renderFin();
+  renderFaixa();
+  renderFilters();
+  renderTable(filtered());
+}
+
+function filtered() {
+  if (currentFilter === 'TODAS') return allRows;
+  return allRows.filter(r => r.situacao === currentFilter);
+}
+
+// ── KPIs ──────────────────────────────────────────────────────────────────
+function renderKPIs() {
+  const total = allRows.length;
+  const fat  = allRows.filter(r => r.situacao === 'FATURADA').length;
+  const ag   = allRows.filter(r => r.situacao === 'AGUARDANDO FATURAMENTO').length;
+  const exec = allRows.filter(r => r.situacao === 'EM EXECUÇÃO').length;
+  const crit = allRows.filter(r => r.situacao !== 'FATURADA' && r.dias > 30).length;
+  const totalGeral = allRows.reduce((s,r) => s+r.total, 0);
+  const abertas = allRows.filter(r => r.situacao !== 'FATURADA').reduce((s,r) => s+r.total, 0);
+
+  document.getElementById('kpiGrid').innerHTML = `
+    ${kpi('Total de OS', total, `Período ativo`, '#4f8ef7', '')}
+    ${kpi('Aguardando Fat.', ag, `${pct(ag,total)} do total`, '#4f8ef7', '#4f8ef7')}
+    ${kpi('Faturadas', fat, `${pct(fat,total)} do total`, '#22c55e', '#22c55e')}
+    ${kpi('Em Execução', exec, exec>0?'OS em campo':'Nenhuma', '#f59e0b', '#f59e0b')}
+    ${kpi('Acima de 30 dias', crit, crit>0?'⚠️ Atenção urgente':'Sem OS críticas', '#ef4444', '#ef4444')}
+    ${kpi('Total Geral', fmt(totalGeral), `Abertas: ${fmt(abertas)}`, '#22c55e', '#22c55e', true)}
+  `;
+}
+function kpi(label, val, sub, ac, kc, sm=false) {
+  return `<div class="kpi-card" style="--accent-color:${ac};--kpi-color:${kc||'var(--text)'}">
+    <div class="kpi-label">${label}</div>
+    <div class="kpi-value${sm?' sm':''}">${val}</div>
+    <div class="kpi-sub">${sub}</div>
+  </div>`;
+}
+function pct(a,b) { return b ? Math.round(a/b*100)+'%' : '0%'; }
+
+// ── Charts ─────────────────────────────────────────────────────────────────
+Chart.defaults.color = '#8892b0';
+Chart.defaults.borderColor = '#2e3350';
+Chart.defaults.font.family = "'Inter','Segoe UI',sans-serif";
+
+function renderCharts() {
+  const fat  = allRows.filter(r => r.situacao === 'FATURADA').length;
+  const ag   = allRows.filter(r => r.situacao === 'AGUARDANDO FATURAMENTO').length;
+  const exec = allRows.filter(r => r.situacao === 'EM EXECUÇÃO').length;
+  const abertas = allRows.filter(r => r.situacao !== 'FATURADA');
+
+  const f0  = abertas.filter(r => r.dias <= 7).length;
+  const f8  = abertas.filter(r => r.dias > 7  && r.dias <= 15).length;
+  const f16 = abertas.filter(r => r.dias > 15 && r.dias <= 30).length;
+  const f30 = abertas.filter(r => r.dias > 30).length;
+
+  document.getElementById('subtitleSituacao').textContent = `${allRows.length} OS no total`;
+  document.getElementById('subtitleFaixa').textContent = `${abertas.length} OS em aberto`;
+
+  const donutOpts = (labels, data, colors) => ({
+    type: 'doughnut',
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0, hoverOffset: 6 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '68%',
+      plugins: { legend: { position: 'bottom', labels: { padding: 14, font: { size: 11 }, usePointStyle: true } } }
+    }
+  });
+
+  if (chartSit) chartSit.destroy();
+  chartSit = new Chart(document.getElementById('chartSituacao'),
+    donutOpts(['Ag. Faturamento','Faturada','Em Execução'], [ag,fat,exec], ['#4f8ef7','#22c55e','#f59e0b']));
+
+  if (chartFx) chartFx.destroy();
+  chartFx = new Chart(document.getElementById('chartFaixa'),
+    donutOpts(['0–7 dias','8–15 dias','16–30 dias','>30 dias'], [f0,f8,f16,f30], ['#22c55e','#f59e0b','#ef4444','#a78bfa']));
+
+  const sorted = [...abertas].sort((a,b) => b.dias - a.dias);
+  const diasColors = sorted.map(r => r.dias<=7?'#22c55e':r.dias<=15?'#f59e0b':r.dias<=30?'#ef4444':'#a78bfa');
+
+  if (chartDi) chartDi.destroy();
+  chartDi = new Chart(document.getElementById('chartDias'), {
+    type: 'bar',
+    data: {
+      labels: sorted.map(r => 'OS ' + r.os),
+      datasets: [{ label: 'Dias em aberto', data: sorted.map(r => r.dias), backgroundColor: diasColors, borderRadius: 4, borderSkipped: false }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: '#2e3350' }, ticks: { font: { size: 10 } } },
+        y: { grid: { display: false }, ticks: { font: { size: 10 } } }
+      }
+    }
+  });
+}
+
+// ── Financial ──────────────────────────────────────────────────────────────
+function renderFin() {
+  const abertas = allRows.filter(r => r.situacao !== 'FATURADA');
+  const faturadas = allRows.filter(r => r.situacao === 'FATURADA');
+  const tProd = abertas.reduce((s,r) => s+r.produto, 0);
+  const tServ = abertas.reduce((s,r) => s+r.servico, 0);
+  const tFat  = faturadas.reduce((s,r) => s+r.total, 0);
+  const tAll  = allRows.reduce((s,r) => s+r.total, 0);
+  const nf    = faturadas.length;
+
+  document.getElementById('finRow').innerHTML = `
+    <div class="fin-card">
+      <div class="fin-label">💼 Total Produto (Abertas)</div>
+      <div class="fin-value">${fmt(tProd)}</div>
+      <div class="fin-sub"><span><span class="dot" style="background:#22c55e"></span> Serviços: ${fmt(tServ)}</span></div>
+    </div>
+    <div class="fin-card">
+      <div class="fin-label">✅ Total Faturado</div>
+      <div class="fin-value">${fmt(tFat)}</div>
+      <div class="fin-sub">
+        <span><span class="dot" style="background:#4f8ef7"></span> ${nf} NF${nf!==1?'s':''} emitida${nf!==1?'s':''}</span>
+      </div>
+    </div>
+    <div class="fin-card">
+      <div class="fin-label">📊 Total Geral (Todas as OS)</div>
+      <div class="fin-value">${fmt(tAll)}</div>
+      <div class="fin-sub">
+        <span><span class="dot" style="background:#a78bfa"></span> Abertas: ${pct(abertas.reduce((s,r)=>s+r.total,0), tAll)}</span>
+        <span><span class="dot" style="background:#22c55e"></span> Faturas: ${pct(tFat, tAll)}</span>
+      </div>
+    </div>
+  `;
+}
+
+// ── Faixa progress ─────────────────────────────────────────────────────────
+function renderFaixa() {
+  const abertas = allRows.filter(r => r.situacao !== 'FATURADA');
+  const n = abertas.length || 1;
+  const counts = [
+    { label: '0–7 dias',    n: abertas.filter(r => r.dias<=7).length,              color: '#22c55e' },
+    { label: '8–15 dias',   n: abertas.filter(r => r.dias>7&&r.dias<=15).length,   color: '#f59e0b' },
+    { label: '16–30 dias',  n: abertas.filter(r => r.dias>15&&r.dias<=30).length,  color: '#ef4444' },
+    { label: 'Acima de 30', n: abertas.filter(r => r.dias>30).length,              color: '#a78bfa' },
+  ];
+  document.getElementById('faixaProgress').innerHTML = counts.map(c => `
+    <div class="faixa-row">
+      <div class="faixa-label">${c.label}</div>
+      <div class="faixa-bar-bg"><div class="faixa-bar-fill" style="width:${(c.n/n*100).toFixed(1)}%;background:${c.color}"></div></div>
+      <div class="faixa-count">${c.n}</div>
+      <div class="faixa-pct">${(c.n/n*100).toFixed(1)}%</div>
+    </div>
+  `).join('');
+  document.querySelector('.faixa-card h3').textContent =
+    `📅 Distribuição por Faixa de Prazo (OS Abertas — ${abertas.length} total)`;
+}
+
+// ── Filters ────────────────────────────────────────────────────────────────
+function renderFilters() {
+  const ag   = allRows.filter(r => r.situacao === 'AGUARDANDO FATURAMENTO').length;
+  const fat  = allRows.filter(r => r.situacao === 'FATURADA').length;
+  const exec = allRows.filter(r => r.situacao === 'EM EXECUÇÃO').length;
+  document.getElementById('filterRow').innerHTML = `
+    <button class="filter-btn ${currentFilter==='TODAS'?'active':''}" onclick="setFilter('TODAS')">Todas (${allRows.length})</button>
+    <button class="filter-btn ${currentFilter==='AGUARDANDO FATURAMENTO'?'active':''}" onclick="setFilter('AGUARDANDO FATURAMENTO')">Aguardando (${ag})</button>
+    <button class="filter-btn ${currentFilter==='FATURADA'?'active':''}" onclick="setFilter('FATURADA')">Faturadas (${fat})</button>
+    <button class="filter-btn ${currentFilter==='EM EXECUÇÃO'?'active':''}" onclick="setFilter('EM EXECUÇÃO')">Em Execução (${exec})</button>
+  `;
+}
+function setFilter(f) { currentFilter = f; renderFilters(); renderTable(filtered()); }
+
+// ── Table ──────────────────────────────────────────────────────────────────
+const SORT_KEYS = ['os','abertura','situacao','dias','faixa','nf','total','produto','servico'];
+
+function renderTable(rows) {
+  document.getElementById('osBody').innerHTML = rows.map(r => `
+    <tr>
+      <td><strong>${r.os}</strong></td>
+      <td>${r.abertura}</td>
+      <td>${badge(r.situacao)}</td>
+      <td>${diasBar(r.dias, r.situacao)}</td>
+      <td>${faixaChip(r.faixa, r.situacao)}</td>
+      <td>${r.nf || '—'}</td>
+      <td class="currency">${r.total ? fmt(r.total) : '—'}</td>
+      <td class="currency">${r.produto ? fmt(r.produto) : '—'}</td>
+      <td class="currency">${r.servico ? fmt(r.servico) : '—'}</td>
+    </tr>
+  `).join('');
+}
+
+function sortTable(col) {
+  if (sortCol===col) sortAsc=!sortAsc; else { sortCol=col; sortAsc=true; }
+  const key = SORT_KEYS[col];
+  const rows = [...filtered()];
+  rows.sort((a,b) => {
+    const va=a[key], vb=b[key];
+    if (typeof va==='string') return sortAsc ? va.localeCompare(vb,'pt-BR') : vb.localeCompare(va,'pt-BR');
+    return sortAsc ? va-vb : vb-va;
+  });
+  renderTable(rows);
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function fmt(v) {
+  return 'R$ ' + v.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function badge(s) {
+  if (s==='FATURADA') return `<span class="badge badge-faturada">Faturada</span>`;
+  if (s==='EM EXECUÇÃO') return `<span class="badge badge-execucao">Em Execução</span>`;
+  return `<span class="badge badge-aguardando">Aguardando</span>`;
+}
+function faixaChip(f, sit) {
+  if (sit==='FATURADA') return `<span class="faixa-chip f0" style="background:rgba(34,197,94,.08);color:#22c55e">Ciclo ${f||'—'}</span>`;
+  if (!f) return '—';
+  const cls = f.startsWith('0')?'f0':f.startsWith('8')?'f8':f.startsWith('16')?'f16':'f30';
+  return `<span class="faixa-chip ${cls}">${f}</span>`;
+}
+function diasBar(d, sit) {
+  if (sit==='FATURADA') return `<span style="color:var(--muted);font-size:.8rem">${d} dias</span>`;
+  const pct = Math.min(d/30*100,100);
+  const color = d<=7?'#22c55e':d<=15?'#f59e0b':d<=30?'#ef4444':'#a78bfa';
+  return `<div class="dias-bar-wrap"><div class="dias-bar" style="width:${pct}%;background:${color}"></div><span class="dias-num">${d}</span></div>`;
+}
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+loadData();
+setInterval(loadData, REFRESH_INTERVAL_MS);
+</script>
+</body>
+</html>
